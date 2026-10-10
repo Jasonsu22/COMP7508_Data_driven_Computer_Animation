@@ -90,15 +90,36 @@ def inverse_kinematics(meta_data, global_joint_positions, global_joint_orientati
                     7. Update orientation: new_orien = rot_vec * old_orien
                 '''
                 
-                ########## Code Start ############
-                
+                ########## Code Start ############              
+                vec_cur2end = chain_positions[end_idx] - chain_positions[current_idx]
+                vec_cur2target = target_pose - chain_positions[current_idx]
+                end_length = np.linalg.norm(vec_cur2end)
+                target_length = np.linalg.norm(vec_cur2target)
+                if end_length <= 1e-12 or target_length <= 1e-12:
+                    continue
 
+                vec_cur2end /= end_length
+                vec_cur2target /= target_length
+                dot = np.clip(np.dot(vec_cur2end, vec_cur2target), -1.0, 1.0)
+                axis = np.cross(vec_cur2end, vec_cur2target)
+                axis_length = np.linalg.norm(axis)
 
+                if axis_length <= 1e-12:
+                    if dot > 0.0:
+                        continue
+                    basis = np.array([1.0, 0.0, 0.0])
+                    if abs(vec_cur2end[0]) > 0.9:
+                        basis = np.array([0.0, 1.0, 0.0])
+                    axis = norm(np.cross(vec_cur2end, basis))
+                    angle = np.pi
+                else:
+                    axis /= axis_length
+                    angle = np.arctan2(axis_length, dot)
 
-
-
-
-                
+                rot_vec = R.from_rotvec(angle * axis)
+                for joint_idx in range(current_idx, end_idx + 1):
+                    chain_orientations[joint_idx] = (
+                        rot_vec * chain_orientations[joint_idx])
                 ########## Code End ############
 
                 chain_local_rotations = [chain_orientations[0]] + [chain_orientations[i].inv() * chain_orientations[i + 1] for i in range(len(path) - 1)]

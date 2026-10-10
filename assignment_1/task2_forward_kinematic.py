@@ -34,8 +34,12 @@ def part1_show_T_pose(viewer, joint_names, joint_parents, joint_offsets):
                    else, the current joint global position = the sum of all parent joint offsets
         '''
         ########## Code Start ############
-
-
+        offset = np.asarray(joint_offsets[joint_idx]).reshape(3)
+        if parent_idx == -1:
+            global_joint_position[joint_idx] = offset
+        else:
+            global_joint_position[joint_idx] = (
+                global_joint_position[parent_idx] + offset)
         ########## Code End ############
         viewer.set_joint_position_by_name(joint_names[joint_idx], global_joint_position[joint_idx])
 
@@ -86,8 +90,20 @@ def part2_forward_kinametic(viewer, joint_names, joint_parents, joint_offsets, j
                
     '''
     ########## Code Start ############
-    
+    for joint_idx, parent_idx in enumerate(joint_parents):
+        local_rotation = R.from_quat(joint_rotations[:, joint_idx, :])
 
+        if parent_idx == -1:
+            global_joint_positions[:, joint_idx, :] = joint_positions[:, joint_idx, :]
+            global_joint_orientations[:, joint_idx, :] = joint_rotations[:, joint_idx, :]
+        else:
+            parent_rotation = R.from_quat(
+                global_joint_orientations[:, parent_idx, :])
+            global_joint_positions[:, joint_idx, :] = (
+                global_joint_positions[:, parent_idx, :]
+                + parent_rotation.apply(joint_positions[:, joint_idx, :]))
+            global_joint_orientations[:, joint_idx, :] = (
+                parent_rotation * local_rotation).as_quat()
     ########## Code End ############
     if not show_animation:
         show_frame_idx = 0
