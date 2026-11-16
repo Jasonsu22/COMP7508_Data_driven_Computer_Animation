@@ -1,0 +1,225 @@
+{
+  "speed_rows": [
+    {
+      "time_step": 10,
+      "target_step": 5,
+      "frames": 72,
+      "playback_s": 1.2,
+      "source_s": 3.0,
+      "speed": 2.5
+    },
+    {
+      "time_step": 10,
+      "target_step": 10,
+      "frames": 162,
+      "playback_s": 2.7,
+      "source_s": 3.0,
+      "speed": 1.11
+    },
+    {
+      "time_step": 10,
+      "target_step": 20,
+      "frames": 342,
+      "playback_s": 5.7,
+      "source_s": 3.0,
+      "speed": 0.53
+    },
+    {
+      "time_step": 10,
+      "target_step": 30,
+      "frames": 522,
+      "playback_s": 8.7,
+      "source_s": 3.0,
+      "speed": 0.34
+    }
+  ],
+  "key_errors": [
+    {
+      "time_step": 5,
+      "midpoint_error_deg": 0.78
+    },
+    {
+      "time_step": 10,
+      "midpoint_error_deg": 1.87
+    },
+    {
+      "time_step": 20,
+      "midpoint_error_deg": 4.58
+    },
+    {
+      "time_step": 40,
+      "midpoint_error_deg": 9.11
+    }
+  ],
+  "real_i": 25,
+  "real_j": 18,
+  "sim_min": 1.296,
+  "yaw_walk": -3.97,
+  "yaw_run": 48.45,
+  "raw_jump_m": 6.52,
+  "blend_rows": [
+    {
+      "between_frames": 2,
+      "duration_s": 0.033,
+      "root_travel_m": 0.025,
+      "max_joint_step_deg": 45.58
+    },
+    {
+      "between_frames": 4,
+      "duration_s": 0.067,
+      "root_travel_m": 0.086,
+      "max_joint_step_deg": 22.79
+    },
+    {
+      "between_frames": 8,
+      "duration_s": 0.133,
+      "root_travel_m": 0.212,
+      "max_joint_step_deg": 11.39
+    },
+    {
+      "between_frames": 12,
+      "duration_s": 0.2,
+      "root_travel_m": 0.34,
+      "max_joint_step_deg": 7.6
+    },
+    {
+      "between_frames": 20,
+      "duration_s": 0.333,
+      "root_travel_m": 0.597,
+      "max_joint_step_deg": 4.56
+    },
+    {
+      "between_frames": 30,
+      "duration_s": 0.5,
+      "root_travel_m": 0.917,
+      "max_joint_step_deg": 3.04
+    },
+    {
+      "between_frames": 45,
+      "duration_s": 0.75,
+      "root_travel_m": 1.398,
+      "max_joint_step_deg": 2.03
+    }
+  ],
+  "pose_distance_deg": 19.39,
+  "source_max_step_deg": 9.76,
+  "suggested_between": 12,
+  "joint_name": [
+    "RootJoint",
+    "lHip",
+    "lKnee",
+    "lAnkle",
+    "lToeJoint",
+    "lToeJoint_end",
+    "pelvis_lowerback",
+    "lowerback_torso",
+    "lTorso_Clavicle",
+    "lShoulder",
+    "lElbow",
+    "lWrist",
+    "lWrist_end",
+    "rTorso_Clavicle",
+    "rShoulder",
+    "rElbow",
+    "rWrist",
+    "rWrist_end",
+    "torso_head",
+    "torso_head_end",
+    "rHip",
+    "rKnee",
+    "rAnkle",
+    "rToeJoint",
+    "rToeJoint_end"
+  ],
+  "interp_frames": 60,
+  "inert_frames": 52,
+  "features": [
+    {
+      "turn_deg": 9.5,
+      "foot_m": 0.501,
+      "foot_vel": 3.497,
+      "name": "Trajectory only",
+      "n": 2
+    },
+    {
+      "turn_deg": 60.0,
+      "foot_m": 0.0,
+      "foot_vel": 0.0,
+      "name": "Feet only",
+      "n": 2
+    },
+    {
+      "turn_deg": 60.0,
+      "foot_m": 0.0,
+      "foot_vel": 0.0,
+      "name": "Feet + hands",
+      "n": 4
+    },
+    {
+      "turn_deg": 60.0,
+      "foot_m": 0.0,
+      "foot_vel": 0.0,
+      "name": "Feet position + velocity",
+      "n": 4
+    },
+    {
+      "turn_deg": 17.0,
+      "foot_m": 0.222,
+      "foot_vel": 0.668,
+      "name": "Feet + path (chosen)",
+      "n": 5
+    },
+    {
+      "turn_deg": 17.1,
+      "foot_m": 0.286,
+      "foot_vel": 0.939,
+      "name": "Feet + path + facing",
+      "n": 6
+    },
+    {
+      "turn_deg": 16.6,
+      "foot_m": 0.28,
+      "foot_vel": 0.929,
+      "name": "Above + hip velocity",
+      "n": 7
+    }
+  ],
+  "horizons": [
+    {
+      "frames": [
+        10,
+        20,
+        30
+      ],
+      "turn_deg": 20.4,
+      "foot_m": 0.228
+    },
+    {
+      "frames": [
+        20,
+        40,
+        60
+      ],
+      "turn_deg": 17.1,
+      "foot_m": 0.217
+    },
+    {
+      "frames": [
+        30,
+        60,
+        90
+      ],
+      "turn_deg": 16.7,
+      "foot_m": 0.184
+    },
+    {
+      "frames": [
+        40,
+        80,
+        120
+      ],
+      "turn_deg": 21.4,
+      "foot_m": 0.176
+    }
+  ]
+}

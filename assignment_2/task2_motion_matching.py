@@ -447,17 +447,27 @@ def main():
     All the variable name can be found in the feature_mapping variable
     '''
     
+    # Trajectory alone follows the stick but pops the pose.
     # selected_feature_names = ['trajectoryPos2D', 'trajectoryRot2D']
     # selected_feature_weights = [1, 1]
-    
+
+    # Feet or hands alone have no notion of the requested path.
     # selected_feature_names = ['lFootPos', 'rFootPos']
     # selected_feature_weights = [0.75, 0.75]
-
-    selected_feature_names = ['lFootPos', 'rFootPos', 'lHandPos', 'rHandPos']
-    selected_feature_weights = [0.75, 0.75, 0.75, 0.75]
-
+    # selected_feature_names = ['lFootPos', 'rFootPos', 'lHandPos', 'rHandPos']
+    # selected_feature_weights = [0.75, 0.75, 0.75, 0.75]
     # selected_feature_names = ['lFootPos', 'rFootPos', 'lFootVel', 'rFootVel']
     # selected_feature_weights = [0.75, 0.75, 1, 1]
+
+    # Five locomotion features. Foot position and velocity keep the contact
+    # from popping; the future root trajectory (20/40/60 frames) is what the
+    # stick actually commands. Facing is not a sixth feature: the controller
+    # already writes the desired root rotation every frame, and adding
+    # trajectoryRot2D pulled matches toward the path at the expense of the feet.
+    selected_feature_names = [
+        'lFootPos', 'rFootPos', 'lFootVel', 'rFootVel', 'trajectoryPos2D'
+    ]
+    selected_feature_weights = [0.75, 0.75, 1.0, 1.0, 1.0]
 
 
     assert len(selected_feature_names) == len(selected_feature_weights)

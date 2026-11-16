@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>COMP7508 Assignment 2</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+    font-size: 11.5pt;
+    line-height: 1.45;
+    color: #1c1c1c;
+    max-width: 180mm;
+    margin: 0 auto;
+    padding: 0;
+  }
+  h1 { font-size: 18pt; font-weight: 600; margin: 0.6em 0 0.2em; }
+  h2 { font-size: 14pt; font-weight: 600; margin: 1.15em 0 0.35em; page-break-after: avoid; }
+  h3 { font-size: 12pt; font-weight: 600; margin: 0.9em 0 0.25em; page-break-after: avoid; }
+  p { margin: 0.45em 0; }
+  .id { margin: 0; font-size: 12pt; }
+  img { width: 100%; height: auto; display: block; margin: 0.4em 0 0.15em; }
+  img.half { width: 78%; margin-left: auto; margin-right: auto; }
+  .caption { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #444; margin: 0 0 0.8em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.4em 0 0.3em; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid #ccc; vertical-align: top; }
+  th { font-size: 10pt; font-weight: 600; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; }
+  ul { margin: 0.3em 0 0.4em; padding-left: 1.2em; }
+  li { margin: 0.15em 0; }
+</style>
+</head>
+<body>
+
+<p class="id">Name: Su Chuanzhou</p>
+<p class="id">UID: 3036837980</p>
+
+<h1>COMP7508 Assignment 2: Motion Editing and Motion Matching</h1>
+<p>The walking and running clips are 60 fps BVH. Positions are interpolated linearly and rotations with spherical linear interpolation. Two clips are joined by searching for a compatible pair of frames, aligning the root, and bridging the gap. Real-time control uses a five-feature motion match on the long walking clip plus the push clip.</p>
+
+<h2>1. Keyframing</h2>
+<p>A key is kept every <code>time_step</code> frames. Between two keys the function returns <code>t = target_step − 1</code> frames that include the left key and exclude the right key, so the next segment can start on that right key without repeating it. For a position channel the sample at fraction <em>i / t</em> is</p>
+<p style="text-align:center">p(i) = p<sub>left</sub> + (p<sub>right</sub> − p<sub>left</sub>) · (i / t).</p>
+<p>Rotations are quaternions in (x, y, z, w). Each joint is interpolated with <code>scipy.spatial.transform.Slerp</code> on times <code>linspace(0, 1, t+1)</code>, and the final sample is dropped because it is exactly the right key. Before building the slerp I flip the sign of the right quaternion when its dot product with the left one is negative, so the interpolation takes the short arc. A 0° to 90° yaw then passes through 22.5°, 45° and 67.5°, and a 10° to 350° pair passes through 0° rather than the long way around.</p>
+
+<h3>Playback speed</h3>
+<p>The supplied calls keep a key every 10 source frames and vary how many frames are generated for that same interval. One source interval of 10 frames is represented by <code>target_step − 1</code> output frames, so the speed relative to the original clip is <code>10 / (target_step − 1)</code>. The original span here is the 180 frames from the first key to the last, which is 3.0 s.</p>
+
+<table>
+  <tr><th>time_step</th><th>target_step</th><th>Output frames</th><th>Playback</th><th>Speed</th></tr>
+  <tr><td>10</td><td>5</td><td>72</td><td>1.2 s</td><td>2.50×</td></tr>
+  <tr><td>10</td><td>10</td><td>162</td><td>2.7 s</td><td>1.11×</td></tr>
+  <tr><td>10</td><td>20</td><td>342</td><td>5.7 s</td><td>0.53×</td></tr>
+  <tr><td>10</td><td>30</td><td>522</td><td>8.7 s</td><td>0.34×</td></tr>
+</table>
+<p class="caption">Table 1. Retiming the same walking keys. <code>target_step = 10</code> is just faster than the source because the right key is not duplicated.</p>
+
+<img src="figures/part1_speed.png" alt="Root Z against playback time for four target steps">
+<p class="caption">Figure 1. Root travel along Z. A larger <code>target_step</code> stretches the same path over more time. The path itself does not change, because every setting interpolates the same pairs of keys.</p>
+
+<img src="figures/part1_speeds_sheet.png" alt="Four walking poses at one second of playback">
+<p class="caption">Figure 2. The pose at 1.0 s of playback. At 2.5× the cycle is nearly finished. At one third speed the character has only just left the first step. This is the same motion played at four rates, which is what changing <code>target_step</code> actually does.</p>
+
+<img src="figures/part1_walk.png" alt="Walking pose from the real-time keyframing">
+<p class="caption">Figure 3. Walking pose from <code>time_step = 10</code>, <code>target_step = 10</code>, near the middle of the retimed clip.</p>
+
+<h3>How far apart the keys can be</h3>
+<p>Changing <code>target_step</code> only changes speed. Changing <code>time_step</code> changes the pose the interpolation is allowed to invent. I measured that by slerping each pair of keys to the halfway sample and comparing it with the original frame that actually sits halfway between those keys. The number is the mean joint angle.</p>
+
+<table>
+  <tr><th>Key interval</th><th>5</th><th>10</th><th>20</th><th>40</th></tr>
+  <tr><td>Midpoint error</td><td>0.8°</td><td>1.9°</td><td>4.6°</td><td>9.1°</td></tr>
+</table>
+<p class="caption">Table 2. Mean joint error of the slerp midpoint against the original in-between pose.</p>
+
+<img class="half" src="figures/part1_key_error.png" alt="Midpoint error against key interval">
+<p class="caption">Figure 4. The error grows roughly with the key interval. Ten frames, about 170 ms at 60 fps, stays under 2°. Forty frames is a large fraction of a step and the straight arc on the quaternion sphere misses the real knee and ankle path.</p>
+<p>For a clean result I would keep keys near 8–12 frames on this 60 fps walk: close enough that the midpoint is still the captured pose, and sparse enough that the clip is actually being compressed. Sparser keys do not just look softer. They leave the motion manifold, so the feet skate and the limb lengths, while formally preserved by the local offsets, no longer pass through the captured contact.</p>
+
+<h2>2. Concatenating walk and run</h2>
+<p>The two clips do not meet. A direct splice of walk frame 40 onto run frame 0 teleports the root by 6.52 m, and the run faces about 52° away from the walk (walk yaw −4°, run yaw +48° at the frames the search eventually picks). The pipeline has five steps.</p>
+<ol>
+  <li>Take a window of 20 frames on either side of the requested cut. On these files that is walk frames 20–59 and run frames 0–19.</li>
+  <li>Build a distance matrix on the local quaternions. Each quaternion is forced into the <em>w ≥ 0</em> hemisphere first, because <em>q</em> and <em>−q</em> are the same rotation and a raw Euclidean norm would otherwise treat them as opposites. The matrix is 40 × 20.</li>
+  <li>The minimum is window entry (5, 18), which is walk frame 25 and run frame 18. The mean joint angle between those two poses is 19.4°.</li>
+  <li>Yaw the whole run about the vertical so frame 18 faces the same way as walk frame 25, then translate the run so the two roots coincide. Child local rotations are left alone, so the matched body pose does not change.</li>
+  <li>Bridge the two poses with the keyframing function: linear positions, slerp rotations.</li>
+</ol>
+
+<img class="half" src="figures/part2_sim_matrix.png" alt="Similarity matrix">
+<p class="caption">Figure 5. Pose distance inside the two windows. The white cross is the minimum, at walk frame 25 and run frame 18. The cost changes smoothly across the gait, which is what a cyclic walk against a short run should look like.</p>
+
+<h3>The root has to keep moving</h3>
+<p>After the alignment both blend endpoints have the same root position, so a plain lerp holds the character still for the whole bridge and then the run starts at full speed. That is the “on the fly” freeze: the pose morphs in place. I replace the root samples with a cubic Hermite curve whose end velocities are the walk’s incoming root velocity and the run’s outgoing root velocity, and I shift the rest of the run by the same hand-off so there is no snap when the captured run resumes. With 8 in-between frames the root travels 0.21 m in 0.13 s, about 1.6 m/s, which sits between the walk (1.2 m/s) and the run (2.7 m/s) instead of dropping to zero.</p>
+
+<img src="figures/part2_root_path.png" alt="Root paths of three transitions">
+<p class="caption">Figure 6. Root path on the ground plane. The direct splice jumps across the scene. Both edited transitions leave the walk along one continuous path and head off in the walk’s direction rather than the run’s original heading.</p>
+
+<h3>How many in-between frames</h3>
+<p>The pose has to cover 19° of mean joint rotation during the bridge. If that happens in two frames, the fastest joint moves 46° in one frame. The source clips themselves never move a joint faster than 9.8° per frame. I take the shortest bridge whose fastest joint stays at or below that source maximum. That lands on 12 frames (0.20 s, 7.6°/frame). Eight frames, the value in the starter, is slightly snappier at 11.4°/frame and is what the concatenation video shows; twelve is the one I would ship.</p>
+<p>Making the bridge much longer does not keep helping. At 45 frames the joint step is only 2°/frame, but the character spends 0.75 s on a pose that was never captured, and the root has been carried 1.4 m by the Hermite curve while the feet are a blend. The motion reads as skating. The length should be set by the pose gap and the fastest joint the clip already contains, not by a fixed constant.</p>
+
+<img class="half" src="figures/part2_blend_length.png" alt="Joint step against blend length">
+<p class="caption">Figure 7. Fastest joint during the bridge. The dashed line is the fastest joint step in the source clips. The curves meet between 8 and 12 frames.</p>
+
+<table>
+  <tr><th>In-betweens</th><th>Duration</th><th>Root travel</th><th>Fastest joint</th></tr>
+  <tr><td>2</td><td>0.03 s</td><td>0.03 m</td><td>45.6°/frame</td></tr>
+  <tr><td>8</td><td>0.13 s</td><td>0.21 m</td><td>11.4°/frame</td></tr>
+  <tr><td>12</td><td>0.20 s</td><td>0.34 m</td><td>7.6°/frame</td></tr>
+  <tr><td>30</td><td>0.50 s</td><td>0.92 m</td><td>3.0°/frame</td></tr>
+  <tr><td>45</td><td>0.75 s</td><td>1.40 m</td><td>2.0°/frame</td></tr>
+</table>
+<p class="caption">Table 3. A longer blend is gentler per frame and worse as a piece of motion, because more of the travel happens off the captured clips.</p>
+
+<h3>Inertialization</h3>
+<p>The better fix for a large gap is to stop inventing poses. Inertialization plays the run immediately. At the cut it stores the position offset and the velocity offset, and the rotation offset as a rotation vector, then decays both with the same critically damped spring the controller already uses. The half-life is the requested bridge length, 8/60 s here. The first output frame is exactly the walk pose, and a few tenths of a second later the correction is gone and the frames are the captured run, including its real foot contacts. There is no interval in which the body is a mixture of the two clips. The concatenation video shows this after the interpolated version. The interpolated bridge is what the five graded steps ask for; inertialization is what I would use when the pose distance or the speed change gets larger than it is on this pair.</p>
+
+<h2>3. Motion matching</h2>
+<p>The database is <code>motion_walking_long.bvh</code> (15,679 frames) and <code>push.bvh</code> (200 frames). Features are expressed in the character frame and divided by their own standard deviation, so a weight is a real importance and not a unit conversion. The controller already predicts the future root at +20, +40 and +60 frames, because its future samples are 20 simulation steps apart and the query reads samples 1, 2 and 3. I left that horizon in place so the database and the stick are on the same clock.</p>
+<p>I compared feature sets by taking 388 walking frames, rotating the desired future path by 60°, and searching. Turn error is the median angle between the requested future displacement and the future displacement of the matched frame. Foot jump is the median distance between the query feet and the matched feet. A set that ignores the path reports the original frame, so its turn error stays at 60° and its foot jump stays at 0. That is a continuity success and a control failure.</p>
+
+<table>
+  <tr><th>Feature set</th><th>Count</th><th>Turn error</th><th>Foot jump</th><th>Foot-velocity jump</th></tr>
+  <tr><td>Future path and facing only</td><td>2</td><td>9.5°</td><td>0.50 m</td><td>3.50</td></tr>
+  <tr><td>Foot positions</td><td>2</td><td>60°</td><td>0</td><td>0</td></tr>
+  <tr><td>Feet and hands</td><td>4</td><td>60°</td><td>0</td><td>0</td></tr>
+  <tr><td>Foot position and velocity</td><td>4</td><td>60°</td><td>0</td><td>0</td></tr>
+  <tr><td>Feet, foot velocity, future path</td><td>5</td><td>17.0°</td><td>0.22 m</td><td>0.67</td></tr>
+  <tr><td>Above, plus future facing</td><td>6</td><td>17.1°</td><td>0.29 m</td><td>0.94</td></tr>
+  <tr><td>Above, plus hip velocity</td><td>7</td><td>16.6°</td><td>0.28 m</td><td>0.93</td></tr>
+</table>
+<p class="caption">Table 4. A 60° turn request. The five-feature row is the set in <code>task2_motion_matching.py</code>. Weights are 0.75, 0.75, 1, 1, 1 after per-dimension normalization.</p>
+
+<img src="figures/part3_features.png" alt="Feature set comparison">
+<p class="caption">Figure 8. The same comparison. Feet alone never turn. The path alone turns and swaps the feet. Five features is the first set that does both.</p>
+
+<p>Hands do not belong in a locomotion query. The stick never asks for an arm pose, and an arm channel spends distance on something the player cannot control. Hip position is a poor extra signal for another reason: in the starter, <code>lHipPos</code> reads <code>rHip</code> and <code>rHipPos</code> reads <code>lHip</code>, and the same swap is in the hip rotation and velocity branches. I did not select those channels. Hip velocity on the root, which is wired correctly, changes the turn error by less than half a degree and makes the foot match worse, so it is not worth a sixth or seventh variable.</p>
+<p>Future facing looks like it should matter, and it does not, once the future position is already in the query. The turn error stays at 17° and the foot jump rises from 0.22 m to 0.29 m. The controller writes the desired root rotation into the pose on every frame anyway, so facing is already enforced downstream. Paying for it again in the search pulls the match toward a heading and away from the feet.</p>
+<p>Foot velocity is the channel that keeps a planted foot from matching a foot that is only passing through the same point. Position alone plus the path has a similar turn error in a separate check, but the foot-velocity jump roughly triples. After normalization I weight positions at 0.75 and velocity and the path at 1. Dropping the path weight toward 0.75 makes the turn sluggish (median error back above 20°). Raising it toward 2.0 gets the turn error down near 10° and pushes the foot jump back toward the trajectory-only failure. Equal weight at 1.0 on the path is the balance I kept.</p>
+
+<h3>Future horizon</h3>
+<p>I rebuilt only the trajectory channels at four horizons and repeated the 60° test with the same five-feature weights. The controller cannot use a horizon other than 20/40/60 without also changing the samples it sends, so this is a check that the locked horizon is a good one, not a second system.</p>
+
+<table>
+  <tr><th>Future frames</th><th>Time</th><th>Turn error</th><th>Foot jump</th></tr>
+  <tr><td>10, 20, 30</td><td>0.17–0.50 s</td><td>20.4°</td><td>0.23 m</td></tr>
+  <tr><td>20, 40, 60</td><td>0.33–1.00 s</td><td>17.1°</td><td>0.22 m</td></tr>
+  <tr><td>30, 60, 90</td><td>0.50–1.50 s</td><td>16.7°</td><td>0.18 m</td></tr>
+  <tr><td>40, 80, 120</td><td>0.67–2.00 s</td><td>21.4°</td><td>0.18 m</td></tr>
+</table>
+<p class="caption">Table 5. Horizon of the future path, with the database and the synthetic query using the same three times.</p>
+<p>A third of a second is too short: the turn has barely started, so many straight frames still look plausible and the error goes back up to 20°. Two seconds is too long: the database’s continuation has often finished the turn and straightened out, so it no longer matches a turn the player is in the middle of requesting. 20/40/60 and 30/60/90 are almost the same quality. I keep 20/40/60 because it is the horizon the controller actually emits. Using 30/60/90 in the database while the stick still sent 20/40/60 would compare a 0.33 s wish with a 0.50 s memory, which is a worse system than either row of the table.</p>
+<p>On a scripted path (straight, left turn, straight, right turn, stop) the five-feature matcher stays on the walking clip, follows the commanded heading, and holds still when the stick is released. The median step in the matched frame index is 1, so most of the time it simply plays the clip forward. About 3% of frames jump by more than 30 frames, which is the search waking up when the request changes. The runtime inertialization, with a 0.05 s half-life, is what hides that jump. The search’s job is to make the jump small enough that a short decay can absorb it. That is another reason not to add channels: every extra normalized dimension can tip a close foot match over to a far one, and the spring then has a bigger offset to hide.</p>
+
+<img src="figures/part3_straight.png" alt="Character walking forward under motion matching">
+<p class="caption">Figure 9. Walking forward. The circle and arrow are the controller’s current position and predicted path.</p>
+<img src="figures/part3_turn.png" alt="Character turning under motion matching">
+<p class="caption">Figure 10. During the left turn the matched stride follows the arrow instead of keeping the previous heading.</p>
+<img src="figures/part3_stop.png" alt="Character stopped under motion matching">
+<p class="caption">Figure 11. After the stick is released. The match stays in the long walking clip, on a frame whose future path is nearly stationary, rather than switching to the push clip.</p>
+
+<h2>4. What produces a good motion</h2>
+<p>The same rule shows up in all three parts. Captured frames are the only poses that are known to be good, so the algorithm should spend as much time as possible playing them and as little as possible inventing a pose in between.</p>
+<ul>
+  <li>Interpolation is safe when the two keys are close. On this walk that means about 10 frames. Past that, slerp is a straight line through a curved step and the feet leave the ground contact that was captured.</li>
+  <li>A transition is a search, then a rigid alignment, then a short bridge. The search is on the body pose. The alignment is a yaw and a translation of the root, because the clips were recorded in different places and facing different directions. The bridge is only long enough that no joint has to move faster than it does inside the clips. The root during that bridge has to carry the velocity across, or the character stops and the run appears to launch.</li>
+  <li>When the two poses are not actually close, blending them is the wrong tool. Inertialization plays the new clip from the first frame and retires the difference with a spring, so the invented part shrinks instead of being stretched over a longer blend.</li>
+  <li>A match query should contain the thing the player is asking for and the thing a bad switch would break. Here that is the future path, and the position and velocity of the feet. Hands, a swapped hip channel, and a facing channel the controller already overwrites all spend the distance budget on something that does not improve the turn and does loosen the feet. Five channels, normalized, with the path and the foot velocity weighted above the foot position, is the smallest set that both follows a 60° request and keeps the contact.</li>
+</ul>
+<p>The two videos are <code>motion_concatenation.mp4</code> (the interpolated walk-to-run, then the inertialized version) and <code>motion_matching.mp4</code> (forward, a left turn, forward, a right turn, and a stop).</p>
+
+</body>
+</html>
